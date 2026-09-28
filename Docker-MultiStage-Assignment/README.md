@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Name** | Shambhu yadav |
-| **Enrollment number** | 10356 |
+| **Name** | Shambhu Yadav |
+| **Enrollment number** | 24bcs10356 |
 
 Environment: macOS (Apple Silicon), Docker Desktop 4.61.0, Docker Engine 29.2.1.
 
