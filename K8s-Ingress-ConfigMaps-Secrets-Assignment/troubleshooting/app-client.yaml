@@ -1,0 +1,21 @@
+# Application that connects to PostgreSQL with the password from Secret app-db-secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: db-client}
+  template:
+    metadata:
+      labels: {app: db-client}
+    spec:
+      containers:
+        - name: client
+          image: postgres:16-alpine
+          command: ["sh", "-c", "while true; do psql -h postgres -U yatri_admin -d postgres -tAc \"select 'CONNECTED OK as ' || current_user\" 2>&1; sleep 5; done"]
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef: {name: app-db-secret, key: DB_PASSWORD}

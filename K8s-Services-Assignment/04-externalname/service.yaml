@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-database-service
+spec:
+  type: ExternalName
+  # Class file used "nencyravaliya.me", which now returns NXDOMAIN (domain no longer exists),
+  # so the CNAME pointed at nothing. Replaced with a public, always-resolvable host.
+  externalName: example.com

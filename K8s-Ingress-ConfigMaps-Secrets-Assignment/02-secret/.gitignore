@@ -1,0 +1,8 @@
+# Never commit real credentials. Keep real secret manifests / env files out of Git.
+# (db-secret.yaml in this folder only contains dummy demo values.)
+*.secret.yaml
+*-secret.local.yaml
+*.env
+.env*
+*.key
+*.pem
