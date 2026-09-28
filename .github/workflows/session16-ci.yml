@@ -1,0 +1,125 @@
+name: Session 16 - CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CICD-GitHub-Actions-Assignment/**"
+      - ".github/workflows/session16-*.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "CICD-GitHub-Actions-Assignment/**"
+      - ".github/workflows/session16-*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: CICD-GitHub-Actions-Assignment/app
+  IMAGE_NAME: session16-cicd-demo
+
+jobs:
+  # ---------- Job 1: unit tests ----------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests (spec + JUnit report)
+        run: |
+          mkdir -p reports
+          npm run test:report
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: ${{ env.APP_DIR }}/reports/
+          retention-days: 7
+
+  # ---------- Job 2: secrets demo (runs in parallel with build) ----------
+  secrets-demo:
+    name: Secrets Demo
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Use a repository secret (masked in logs)
+        env:
+          DEMO_SECRET: ${{ secrets.SESSION16_DEMO_SECRET }}
+        run: |
+          echo "Secret value printed directly: $DEMO_SECRET"
+          echo "Secret length: ${#DEMO_SECRET} characters"
+          test -n "$DEMO_SECRET" && echo "SESSION16_DEMO_SECRET is available to the job"
+
+      - name: Use the automatic GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Token printed directly: $GH_TOKEN"
+          gh api repos/${{ github.repository }} --jq '"Repo: " + .full_name + " | private: " + (.private|tostring) + " | default branch: " + .default_branch'
+
+  # ---------- Job 3: build Docker image (only after tests pass) ----------
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg APP_VERSION=${GITHUB_SHA::7} \
+            -t $IMAGE_NAME:${GITHUB_SHA::7} \
+            $APP_DIR
+          docker images $IMAGE_NAME
+
+      - name: Smoke test the container
+        run: |
+          docker run -d --name smoke -p 3000:3000 $IMAGE_NAME:${GITHUB_SHA::7}
+          for i in $(seq 1 10); do curl -sf http://localhost:3000/health && break; sleep 1; done
+          echo
+          curl -s http://localhost:3000/
+          echo
+          curl -s "http://localhost:3000/add?a=20&b=22"
+          docker rm -f smoke
+
+      - name: Save image and build info
+        run: |
+          mkdir -p dist
+          docker save $IMAGE_NAME:${GITHUB_SHA::7} | gzip > dist/image.tar.gz
+          {
+            echo "image:   $IMAGE_NAME:${GITHUB_SHA::7}"
+            echo "commit:  $GITHUB_SHA"
+            echo "run:     $GITHUB_RUN_ID (#$GITHUB_RUN_NUMBER)"
+            echo "runner:  $RUNNER_OS / $RUNNER_ARCH"
+            echo "built:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > dist/build-info.txt
+          cat dist/build-info.txt
+          ls -lh dist
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: dist/
+          retention-days: 7

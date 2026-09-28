@@ -1,0 +1,115 @@
+name: Session 16 - CD
+
+# Runs automatically after "Session 16 - CI" finishes on main (the CI workflow
+# itself is path-filtered to CICD-GitHub-Actions-Assignment/**), or manually.
+on:
+  workflow_run:
+    workflows: ["Session 16 - CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+env:
+  APP_DIR: CICD-GitHub-Actions-Assignment/app
+  K8S_DIR: CICD-GitHub-Actions-Assignment/k8s
+  IMAGE_NAME: session16-cicd-demo
+  REGISTRY_IMAGE: ghcr.io/paradoxicsys/session16-cicd-demo
+  COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  # ---------- Job 1: push the image that CI tested to GHCR ----------
+  push-image:
+    name: Push Image to GHCR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
+
+      - name: Compute image tag
+        id: tag
+        run: echo "tag=${COMMIT_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Download image artifact from the CI run
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load image from CI artifact
+        if: github.event_name == 'workflow_run'
+        run: |
+          cat dist/build-info.txt
+          gunzip -c dist/image.tar.gz | docker load
+
+      - name: Build image (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: docker build --build-arg APP_VERSION=${{ steps.tag.outputs.tag }} -t $IMAGE_NAME:${{ steps.tag.outputs.tag }} $APP_DIR
+
+      - name: Log in to GHCR with GITHUB_TOKEN
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          docker tag $IMAGE_NAME:$TAG $REGISTRY_IMAGE:$TAG
+          docker tag $IMAGE_NAME:$TAG $REGISTRY_IMAGE:latest
+          docker push $REGISTRY_IMAGE:$TAG
+          docker push $REGISTRY_IMAGE:latest
+
+  # ---------- Job 2: deploy to a Kubernetes (kind) cluster on the runner ----------
+  deploy:
+    name: Deploy to Kubernetes (kind)
+    runs-on: ubuntu-latest
+    needs: push-image
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: session16
+
+      - name: Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-pull \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply manifests
+        run: |
+          sed -i "s|__IMAGE_TAG__|${{ needs.push-image.outputs.tag }}|" $K8S_DIR/deployment.yaml
+          grep image: $K8S_DIR/deployment.yaml
+          kubectl apply -f $K8S_DIR/
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/session16-cicd-demo --timeout=120s
+
+      - name: Verify the deployment
+        run: |
+          kubectl get deploy,pods,svc -o wide
+          kubectl port-forward service/session16-cicd-demo 8080:80 >/dev/null 2>&1 &
+          sleep 3
+          curl -s http://localhost:8080/ ; echo
+          curl -s http://localhost:8080/health ; echo
+          curl -s "http://localhost:8080/add?a=40&b=2" ; echo

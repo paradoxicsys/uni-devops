@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session16-cicd-demo
+  labels:
+    app: session16-cicd-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: session16-cicd-demo
+  template:
+    metadata:
+      labels:
+        app: session16-cicd-demo
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: app
+          image: ghcr.io/paradoxicsys/session16-cicd-demo:__IMAGE_TAG__
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
