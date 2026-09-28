@@ -1,0 +1,24 @@
+# Sampled every 15s with: kubectl get hpa hpa-demo --no-headers. Columns: time | NAME REFERENCE TARGETS MINPODS MAXPODS REPLICAS AGE
+# load-generator.yaml applied just before 19:04:45; load_generator.sh (3 more workers) started just before 19:06:46
+19:03:29  hpa-demo   Deployment/hpa-demo   cpu: 0%/50%   1     5     1     99s
+19:03:45  hpa-demo   Deployment/hpa-demo   cpu: 0%/50%   1     5     1     114s
+19:04:00  hpa-demo   Deployment/hpa-demo   cpu: 0%/50%   1     5     1     2m9s
+19:04:15  hpa-demo   Deployment/hpa-demo   cpu: 0%/50%   1     5     1     2m24s
+19:04:30  hpa-demo   Deployment/hpa-demo   cpu: 0%/50%   1     5     1     2m39s
+19:04:45  hpa-demo   Deployment/hpa-demo   cpu: 65%/50%   1     5     1     2m54s
+19:05:00  hpa-demo   Deployment/hpa-demo   cpu: 65%/50%   1     5     2     3m10s
+19:05:16  hpa-demo   Deployment/hpa-demo   cpu: 65%/50%   1     5     2     3m25s
+19:05:31  hpa-demo   Deployment/hpa-demo   cpu: 65%/50%   1     5     2     3m40s
+19:05:46  hpa-demo   Deployment/hpa-demo   cpu: 51%/50%   1     5     2     3m55s
+19:06:01  hpa-demo   Deployment/hpa-demo   cpu: 51%/50%   1     5     2     4m10s
+19:06:16  hpa-demo   Deployment/hpa-demo   cpu: 51%/50%   1     5     2     4m25s
+19:06:31  hpa-demo   Deployment/hpa-demo   cpu: 51%/50%   1     5     2     4m40s
+19:06:46  hpa-demo   Deployment/hpa-demo   cpu: 78%/50%   1     5     2     4m55s
+19:07:01  hpa-demo   Deployment/hpa-demo   cpu: 78%/50%   1     5     4     5m10s
+19:07:16  hpa-demo   Deployment/hpa-demo   cpu: 78%/50%   1     5     4     5m25s
+19:07:31  hpa-demo   Deployment/hpa-demo   cpu: 78%/50%   1     5     4     5m41s
+19:07:47  hpa-demo   Deployment/hpa-demo   cpu: 58%/50%   1     5     4     5m56s
+19:08:02  hpa-demo   Deployment/hpa-demo   cpu: 58%/50%   1     5     4     6m11s
+19:08:17  hpa-demo   Deployment/hpa-demo   cpu: 58%/50%   1     5     4     6m26s
+19:08:32  hpa-demo   Deployment/hpa-demo   cpu: 58%/50%   1     5     4     6m41s
+19:08:47  hpa-demo   Deployment/hpa-demo   cpu: 50%/50%   1     5     4     6m56s

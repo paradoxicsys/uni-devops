@@ -1,0 +1,23 @@
+# Pod mounts a ConfigMap and a Secret that do not exist yet.
+# The kubelet cannot build the volumes, so the Pod sticks in ContainerCreating.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cc-demo
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27
+      volumeMounts:
+        - name: site
+          mountPath: /usr/share/nginx/html
+        - name: creds
+          mountPath: /etc/creds
+          readOnly: true
+  volumes:
+    - name: site
+      configMap:
+        name: web-content
+    - name: creds
+      secret:
+        secretName: web-creds

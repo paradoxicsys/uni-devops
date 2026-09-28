@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-demo
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo mode=$APP_MODE db=$DATABASE_HOST; sleep 3600"]
+      env:
+        - name: APP_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: app-settings
+              key: APP_MODE
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-settings
+              key: DATABASE_HOST     # BUG: key does not exist (ConfigMap uses DB_HOST)

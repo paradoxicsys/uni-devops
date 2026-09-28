@@ -1,0 +1,4 @@
+replicaCount: 3
+image:
+  tag: "1.27"
+message: "Hello from revision 3 (nginx 1.27)"

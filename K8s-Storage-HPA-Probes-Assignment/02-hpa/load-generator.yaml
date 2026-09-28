@@ -1,0 +1,14 @@
+# Load generator from the class README (kubectl run load-generator ...) as a manifest.
+# Busybox pod that requests the Service in an endless loop.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-generator
+  labels:
+    role: load-generator
+spec:
+  restartPolicy: Never
+  containers:
+    - name: load
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "while true; do wget -q -O- http://hpa-demo-service > /dev/null; done"]

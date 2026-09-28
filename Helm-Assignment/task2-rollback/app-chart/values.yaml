@@ -1,0 +1,8 @@
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "1.24"
+
+# Added: text served on "/" (from a ConfigMap) so each revision can be verified with curl
+message: "Hello from revision 1 (nginx 1.24)"

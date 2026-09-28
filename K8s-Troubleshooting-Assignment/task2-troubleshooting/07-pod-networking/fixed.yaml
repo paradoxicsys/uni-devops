@@ -1,0 +1,31 @@
+# Fixed: containerPort and Service targetPort both 80 (the port nginx listens on).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          ports:
+            - containerPort: 80     # FIX: the port nginx really listens on
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 80
+      targetPort: 80                # FIX: matches containerPort

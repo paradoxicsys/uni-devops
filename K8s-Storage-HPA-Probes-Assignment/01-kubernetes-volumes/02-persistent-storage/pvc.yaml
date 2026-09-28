@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: student-pvc
+spec:
+  # FIX: an empty storageClassName disables dynamic provisioning for this claim,
+  # so it binds to the manually created PV "student-pv" instead of the default
+  # "standard" StorageClass creating a brand-new PV.
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
