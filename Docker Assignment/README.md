@@ -22,9 +22,10 @@ docker build -t <image-name> ./<folder>
 docker run -d --name <image-name> -p <host-port>:<container-port> <image-name>
 ```
 
-Run all six:
+Run all six (from the repo root):
 
 ```bash
+cd "Docker Assignment"
 docker build -t nodejs-app ./nodejs-app && docker run -d --name nodejs-app -p 3000:3000 nodejs-app
 docker build -t python-app ./python-app && docker run -d --name python-app -p 5001:5000 python-app
 docker build -t java-app   ./java-app   && docker run -d --name java-app   -p 8090:8080 java-app
