@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-alerts
+  namespace: demo
+spec:
+  groups:
+    - name: demo.rules
+      rules:
+        - alert: HighPodCPU
+          expr: sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace="demo", container!=""}[1m])) > 0.1
+          for: 1m
+          labels: {severity: warning}
+          annotations:
+            summary: "Pod {{ $labels.pod }} CPU > 0.1 core for 1m"
+        - alert: HighPodMemory
+          expr: sum by (namespace, pod) (container_memory_working_set_bytes{namespace="demo", container!=""}) > 100 * 1024 * 1024
+          for: 1m
+          labels: {severity: warning}
+          annotations:
+            summary: "Pod {{ $labels.pod }} memory > 100Mi"
+        - alert: PodinfoDown
+          expr: kube_deployment_status_replicas_available{namespace="demo", deployment="podinfo"} < 1
+          for: 30s
+          labels: {severity: critical}
+          annotations:
+            summary: "podinfo has no available replicas"

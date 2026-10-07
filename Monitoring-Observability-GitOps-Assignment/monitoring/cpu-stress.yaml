@@ -1,0 +1,13 @@
+# Burns CPU to trigger the HighPodCPU alert (delete after the demo)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-stress
+  namespace: demo
+spec:
+  containers:
+    - name: stress
+      image: busybox:1.36
+      command: ["sh", "-c", "echo burning CPU; while true; do :; done"]
+      resources:
+        limits: {cpu: 500m, memory: 32Mi}

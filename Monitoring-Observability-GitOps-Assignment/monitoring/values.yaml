@@ -1,0 +1,29 @@
+# Lightweight kube-prometheus-stack for a 3 GB minikube node
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 6h
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+    # pick up ServiceMonitors / PrometheusRules from any namespace (not only helm-labelled ones)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+grafana:
+  adminPassword: admin123
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+# control-plane components are not reachable on minikube -> avoid noisy "target down" alerts
+kubeEtcd: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeProxy: {enabled: false}
