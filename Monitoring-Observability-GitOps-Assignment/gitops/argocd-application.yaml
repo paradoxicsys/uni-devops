@@ -1,0 +1,21 @@
+# Applied once by hand (kept outside the synced path)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:paradoxicsys/uni-devops.git
+    targetRevision: main
+    path: Monitoring-Observability-GitOps-Assignment/gitops/app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
