@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "CICD-GitHub-Actions-Assignment/**"
+      - "!CICD-GitHub-Actions-Assignment/**/*.md"
+      - "!CICD-GitHub-Actions-Assignment/screenshots/**"
       - ".github/workflows/session16-*.yml"
   pull_request:
     branches: [main]
     paths:
       - "CICD-GitHub-Actions-Assignment/**"
+      - "!CICD-GitHub-Actions-Assignment/**/*.md"
+      - "!CICD-GitHub-Actions-Assignment/screenshots/**"
       - ".github/workflows/session16-*.yml"
   workflow_dispatch:
 

@@ -7,11 +7,15 @@ on:
     branches: [main]
     paths:
       - "DevSecOps-Assignment/**"
+      - "!DevSecOps-Assignment/**/*.md"
+      - "!DevSecOps-Assignment/screenshots/**"
       - ".github/workflows/session17-*.yml"
   pull_request:
     branches: [main]
     paths:
       - "DevSecOps-Assignment/**"
+      - "!DevSecOps-Assignment/**/*.md"
+      - "!DevSecOps-Assignment/screenshots/**"
       - ".github/workflows/session17-*.yml"
   workflow_dispatch:
     inputs:
