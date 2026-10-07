@@ -4,7 +4,7 @@ metadata:
   name: gitops-demo
   labels: {app: gitops-demo}
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels: {app: gitops-demo}
   template:
