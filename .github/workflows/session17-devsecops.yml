@@ -202,8 +202,9 @@ jobs:
       - name: Gate - fail on fixable CRITICAL/HIGH vulnerabilities
         run: |
           trivy image --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed \
-            --exit-code 1 --ignorefile $PROJECT_DIR/.trivyignore \
+            --exit-code 1 --ignorefile $PROJECT_DIR/.trivyignore --table-mode detailed \
             $IMAGE_NAME:${GITHUB_SHA::7}
+          echo "No fixable CRITICAL/HIGH vulnerabilities - image scan gate passed"
 
   # ---------------- 8. Security gate ----------------
   security-gate:

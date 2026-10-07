@@ -33,14 +33,11 @@ rules:
     severity: WARNING
     message: Express app created without helmet() security headers.
     patterns:
-      - pattern: |
-          $APP = express();
-          ...
+      - pattern: express()
       - pattern-not-inside: |
           $APP = express();
           ...
-          $APP.use(helmet());
-          ...
+          $APP.use(helmet(...));
 
   - id: hardcoded-credential
     languages: [javascript]
