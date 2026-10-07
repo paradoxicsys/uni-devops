@@ -1,0 +1,2 @@
+# Accepted risks for the Trivy scans (one CVE ID per line, with a reason).
+# Nothing is ignored at the moment - the image passes the CRITICAL/HIGH gate.

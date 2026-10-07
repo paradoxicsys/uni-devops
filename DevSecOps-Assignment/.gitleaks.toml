@@ -1,0 +1,19 @@
+# Gitleaks configuration: all built-in rules + one project rule.
+title = "devsecops-demo gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "internal-api-token"
+description = "Internal API token (format: ddo_ + 32 hex chars)"
+regex = '''ddo_[0-9a-f]{32}'''
+keywords = ["ddo_"]
+
+[allowlist]
+description = "Files that never contain real secrets"
+paths = [
+  '''package-lock\.json''',
+  '''node_modules''',
+  '''screenshots''',
+]

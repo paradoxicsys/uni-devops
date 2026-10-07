@@ -1,0 +1,54 @@
+# Custom Semgrep rules for this project (run together with the p/javascript,
+# p/nodejs and p/secrets community rulesets in the pipeline).
+rules:
+  - id: no-eval
+    languages: [javascript]
+    severity: ERROR
+    message: eval()/new Function() executes arbitrary code - do not use it.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: no-child-process-exec
+    languages: [javascript]
+    severity: ERROR
+    message: child_process exec*() runs a shell - risk of command injection.
+    pattern-either:
+      - pattern: require('child_process').exec(...)
+      - pattern: require('child_process').execSync(...)
+      - pattern: $CP.exec($CMD, ...)
+      - pattern: $CP.execSync($CMD, ...)
+
+  - id: express-reflected-input
+    languages: [javascript]
+    severity: ERROR
+    message: User input sent back with res.send() - possible reflected XSS. Use res.json() or escape it.
+    pattern-either:
+      - pattern: $RES.send(<... $REQ.query ...>)
+      - pattern: $RES.send(<... $REQ.params ...>)
+      - pattern: $RES.send(<... $REQ.body ...>)
+
+  - id: express-missing-helmet
+    languages: [javascript]
+    severity: WARNING
+    message: Express app created without helmet() security headers.
+    patterns:
+      - pattern: |
+          $APP = express();
+          ...
+      - pattern-not-inside: |
+          $APP = express();
+          ...
+          $APP.use(helmet());
+          ...
+
+  - id: hardcoded-credential
+    languages: [javascript]
+    severity: ERROR
+    message: Hard-coded credential - load it from an environment variable or secret.
+    patterns:
+      - pattern: |
+          const $KEY = "$VALUE";
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*(password|passwd|secret|token|api_?key).*

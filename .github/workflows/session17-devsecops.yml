@@ -1,0 +1,296 @@
+name: Session 17 - DevSecOps Pipeline
+
+# Code -> Build -> Unit Test -> SAST -> SCA -> Secret Scan -> Docker Build
+#      -> Container Image Scan -> Security Gate -> Push Image -> Deploy to Kubernetes
+on:
+  push:
+    branches: [main]
+    paths:
+      - "DevSecOps-Assignment/**"
+      - ".github/workflows/session17-*.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "DevSecOps-Assignment/**"
+      - ".github/workflows/session17-*.yml"
+  workflow_dispatch:
+    inputs:
+      base_image:
+        description: "Base image for the Docker build (use an old one, e.g. node:16, to see the gate fail)"
+        default: "node:22-alpine"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_DIR: DevSecOps-Assignment
+  APP_DIR: DevSecOps-Assignment/app
+  IMAGE_NAME: devsecops-demo
+  REGISTRY_IMAGE: ghcr.io/paradoxicsys/devsecops-demo
+  BASE_IMAGE: ${{ github.event.inputs.base_image || 'node:22-alpine' }}
+  GITLEAKS_VERSION: 8.30.1
+
+jobs:
+  # ---------------- 1. Build ----------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (syntax check)
+        run: npm run build
+
+  # ---------------- 2. Unit tests ----------------
+  unit-test:
+    name: Unit Test
+    runs-on: ubuntu-latest
+    needs: build
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+      - run: npm ci
+      - name: Run unit tests
+        run: |
+          mkdir -p reports
+          npm run test:report
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: ${{ env.APP_DIR }}/reports/
+
+  # ---------------- 3. SAST (Semgrep) ----------------
+  sast:
+    name: SAST - Semgrep
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Semgrep
+        run: pip install --quiet semgrep && semgrep --version
+      - name: Run Semgrep (custom rules + community rulesets)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          semgrep scan --metrics=off --error \
+            --config .semgrep.yml \
+            --config p/javascript --config p/nodejs --config p/secrets \
+            --exclude node_modules \
+            --json-output=semgrep.json \
+            app
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sast-semgrep
+          path: ${{ env.PROJECT_DIR }}/semgrep.json
+
+  # ---------------- 4. SCA (npm audit + Trivy fs) ----------------
+  sca:
+    name: SCA - npm audit + Trivy fs
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: npm audit (fail on high/critical)
+        working-directory: ${{ env.APP_DIR }}
+        run: npm audit --audit-level=high
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.75.0/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.75.0
+          trivy --version
+      - name: Trivy filesystem scan of dependencies
+        run: |
+          trivy fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 \
+            --ignorefile $PROJECT_DIR/.trivyignore $APP_DIR
+
+  # ---------------- 5. Secret scanning (Gitleaks) ----------------
+  secret-scan:
+    name: Secret Scan - Gitleaks
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Gitleaks
+        run: |
+          curl -sSL -o gitleaks.tgz \
+            https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz
+          tar -xzf gitleaks.tgz gitleaks && sudo mv gitleaks /usr/local/bin/ && rm gitleaks.tgz
+          gitleaks version
+      - name: Scan project files
+        run: gitleaks dir $PROJECT_DIR --config $PROJECT_DIR/.gitleaks.toml --redact --verbose
+      - name: Scan git history of the project
+        run: gitleaks git . --config $PROJECT_DIR/.gitleaks.toml --redact --verbose --log-opts="-- $PROJECT_DIR"
+
+  # ---------------- 6. Docker build ----------------
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secret-scan]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: |
+          echo "Base image: $BASE_IMAGE"
+          docker build \
+            --build-arg BASE_IMAGE=$BASE_IMAGE \
+            --build-arg APP_VERSION=${GITHUB_SHA::7} \
+            -t $IMAGE_NAME:${GITHUB_SHA::7} $APP_DIR
+          docker images $IMAGE_NAME
+      - name: Save image
+        run: docker save $IMAGE_NAME:${GITHUB_SHA::7} | gzip > image.tar.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: image.tar.gz
+          retention-days: 3
+
+  # ---------------- 7. Container image scan (Trivy) ----------------
+  image-scan:
+    name: Image Scan - Trivy
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+      - name: Load image
+        run: gunzip -c image.tar.gz | docker load
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.75.0/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.75.0
+          trivy --version
+      - name: Full report (all severities, informational)
+        run: |
+          trivy image --scanners vuln --ignorefile $PROJECT_DIR/.trivyignore \
+            --format json --output trivy-image.json $IMAGE_NAME:${GITHUB_SHA::7}
+          trivy convert --format table --severity LOW,MEDIUM,HIGH,CRITICAL --table-mode summary trivy-image.json || true
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-image-report
+          path: trivy-image.json
+      - name: Gate - fail on fixable CRITICAL/HIGH vulnerabilities
+        run: |
+          trivy image --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed \
+            --exit-code 1 --ignorefile $PROJECT_DIR/.trivyignore \
+            $IMAGE_NAME:${GITHUB_SHA::7}
+
+  # ---------------- 8. Security gate ----------------
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: [unit-test, sast, sca, secret-scan, image-scan]
+    if: always()
+    steps:
+      - name: Evaluate all security checks
+        run: |
+          {
+            echo "## Security Gate"
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Unit tests | ${{ needs.unit-test.result }} |"
+            echo "| SAST (Semgrep) | ${{ needs.sast.result }} |"
+            echo "| SCA (npm audit + Trivy fs) | ${{ needs.sca.result }} |"
+            echo "| Secret scan (Gitleaks) | ${{ needs.secret-scan.result }} |"
+            echo "| Image scan (Trivy) | ${{ needs.image-scan.result }} |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          for r in ${{ needs.unit-test.result }} ${{ needs.sast.result }} ${{ needs.sca.result }} \
+                   ${{ needs.secret-scan.result }} ${{ needs.image-scan.result }}; do
+            if [ "$r" != "success" ]; then
+              echo "SECURITY GATE: FAILED - image will NOT be pushed or deployed"
+              exit 1
+            fi
+          done
+          echo "SECURITY GATE: PASSED - image approved for push and deploy"
+
+  # ---------------- 9. Push image to GHCR ----------------
+  push-image:
+    name: Push Image to GHCR
+    runs-on: ubuntu-latest
+    needs: security-gate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+      - name: Load image
+        run: gunzip -c image.tar.gz | docker load
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag and push
+        run: |
+          TAG=${GITHUB_SHA::7}
+          docker tag $IMAGE_NAME:$TAG $REGISTRY_IMAGE:$TAG
+          docker tag $IMAGE_NAME:$TAG $REGISTRY_IMAGE:latest
+          docker push $REGISTRY_IMAGE:$TAG
+          docker push $REGISTRY_IMAGE:latest
+
+  # ---------------- 10. Deploy to Kubernetes (kind) ----------------
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: push-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: devsecops
+      - name: Create namespace and GHCR pull secret
+        run: |
+          kubectl apply -f $PROJECT_DIR/k8s/namespace.yaml
+          kubectl -n devsecops create secret docker-registry ghcr-pull \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }}
+      - name: Apply manifests
+        run: |
+          sed -i "s|__IMAGE_TAG__|${GITHUB_SHA::7}|" $PROJECT_DIR/k8s/deployment.yaml
+          grep image: $PROJECT_DIR/k8s/deployment.yaml
+          kubectl apply -f $PROJECT_DIR/k8s/
+      - name: Wait for rollout
+        run: kubectl -n devsecops rollout status deployment/devsecops-demo --timeout=120s
+      - name: Verify the deployment
+        run: |
+          kubectl -n devsecops get deploy,pods,svc -o wide
+          kubectl -n devsecops port-forward service/devsecops-demo 8080:80 >/dev/null 2>&1 &
+          sleep 3
+          curl -s http://localhost:8080/ ; echo
+          curl -s http://localhost:8080/health ; echo
+          curl -s -X POST -H 'content-type: application/json' -d '{"title":"deployed by pipeline"}' http://localhost:8080/api/tasks ; echo
+          curl -sI http://localhost:8080/ | grep -iE 'HTTP/|content-security-policy|x-content-type'
