@@ -1,0 +1,31 @@
+# Gitleaks configuration: all built-in rules + project rules + allowlist.
+title = "final-devops-project gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "final-app-api-token"
+description = "final-app API token (format: fda_ + 32 hex chars)"
+regex = '''fda_[0-9a-f]{32}'''
+keywords = ["fda_"]
+
+[[rules]]
+id = "private-key-file"
+description = "Private SSH key material (e.g. an Argo CD deploy key)"
+regex = '''-----BEGIN (OPENSSH|RSA|EC) PRIVATE KEY-----'''
+keywords = ["PRIVATE KEY"]
+
+[allowlist]
+description = "Known non-secrets"
+paths = [
+  '''package-lock\.json''',
+  '''node_modules''',
+  '''screenshots''',
+  '''\.terraform\.lock\.hcl''',
+]
+# documented dummy values used for the local demo
+regexes = [
+  '''dummy-token-change-me''',
+  '''unit-test-token''',
+]

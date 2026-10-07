@@ -1,0 +1,31 @@
+# Applied once by hand: kubectl apply -f gitops/argocd-application.yaml
+# Argo CD then keeps namespace final-prod in sync with helm/final-app + values-prod.yaml on main.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: final-app-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # deleting the Application also deletes its resources
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:paradoxicsys/uni-devops.git
+    targetRevision: main
+    path: final-devops-project/helm/final-app
+    helm:
+      releaseName: final-app
+      valueFiles:
+        - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: final-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted

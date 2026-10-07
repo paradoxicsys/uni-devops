@@ -1,0 +1,11 @@
+# Same rules as Dockerfile.dockerignore (BuildKit reads <Dockerfile>.dockerignore when the context is application/)
+node_modules
+npm-debug.log
+reports
+data
+test
+coverage
+.git
+.gitignore
+*.md
+.env*

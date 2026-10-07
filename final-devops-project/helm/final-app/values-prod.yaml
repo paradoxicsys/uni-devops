@@ -1,0 +1,29 @@
+# Production overrides: helm upgrade --install final-app helm/final-app -f helm/final-app/values-prod.yaml
+replicaCount: 3
+
+config:
+  APP_ENV: prod
+  APP_MESSAGE: "Hello from Helm (prod)"
+  LOG_LEVEL: info
+
+secret:
+  create: false
+  existingSecret: final-app-secret   # created out of band, never stored in Git
+
+resources:
+  requests: {cpu: 100m, memory: 96Mi}
+  limits: {cpu: 500m, memory: 256Mi}
+
+persistence:
+  size: 1Gi
+
+ingress:
+  host: final-app.prod.local
+
+autoscaling:
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+serviceMonitor:
+  enabled: true

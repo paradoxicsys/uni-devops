@@ -1,0 +1,70 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/paradoxicsys/final-devops-app
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []   # e.g. [{name: ghcr-pull}] for the private GHCR package
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+config:              # rendered into the ConfigMap -> env vars
+  APP_ENV: dev
+  APP_MESSAGE: "Hello from Helm (dev)"
+  LOG_LEVEL: debug
+
+secret:
+  create: true
+  apiToken: "dummy-token-change-me"   # dummy; override with --set secret.apiToken=... or use existingSecret
+  existingSecret: ""
+
+probes:
+  startup:   {path: /health, periodSeconds: 2, failureThreshold: 30}
+  liveness:  {path: /health, periodSeconds: 10, failureThreshold: 3}
+  readiness: {path: /ready, periodSeconds: 5, failureThreshold: 2}
+
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {cpu: 300m, memory: 160Mi}
+
+persistence:
+  enabled: true
+  size: 256Mi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  mountPath: /data
+
+ingress:
+  enabled: true
+  className: nginx
+  host: final-app.local
+  annotations: {}
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+
+serviceMonitor:
+  enabled: false     # needs the Prometheus Operator CRDs (kube-prometheus-stack)
+  interval: 15s
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile: {type: RuntimeDefault}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: {drop: ["ALL"]}

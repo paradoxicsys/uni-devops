@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: final-app-alerts
+  namespace: final-app
+spec:
+  groups:
+    - name: final-app.rules
+      rules:
+        - alert: FinalAppDown
+          expr: absent(up{namespace="final-app", service="final-app"} == 1)
+          for: 1m
+          labels: {severity: critical}
+          annotations:
+            summary: "final-app has no healthy scrape target for 1m"
+        - alert: FinalAppHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{namespace="final-app", status=~"5.."}[2m]))
+              / sum(rate(http_requests_total{namespace="final-app"}[2m])) > 0.05
+          for: 2m
+          labels: {severity: warning}
+          annotations:
+            summary: "More than 5% of final-app requests return 5xx"
+        - alert: FinalAppHighLatency
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="final-app"}[5m]))) > 0.5
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "final-app p95 latency above 500ms"
+        - alert: FinalAppUnauthorizedRequests
+          expr: sum(rate(http_requests_total{namespace="final-app", status="401"}[1m])) > 0.2
+          for: 30s
+          labels: {severity: warning}
+          annotations:
+            summary: "final-app is receiving requests with a wrong or missing API token"
+        - alert: FinalAppPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="final-app"}[10m]) > 2
+          labels: {severity: warning}
+          annotations:
+            summary: "Pod {{ $labels.pod }} restarted more than twice in 10m"

@@ -1,0 +1,17 @@
+# Tells Prometheus to scrape /metrics of the final-app Service every 15s
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: final-app
+  namespace: final-app
+  labels: {app.kubernetes.io/name: final-app}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: final-app
+  namespaceSelector:
+    matchNames: [final-app]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

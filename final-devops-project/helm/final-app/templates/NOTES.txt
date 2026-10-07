@@ -1,0 +1,18 @@
+{{ include "final-app.fullname" . }} {{ .Values.image.tag | default .Chart.AppVersion }} deployed to namespace {{ .Release.Namespace }}.
+
+Check the rollout:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "final-app.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} get pods,svc,ingress,hpa,pvc -l app.kubernetes.io/instance={{ .Release.Name }}
+{{- if .Values.ingress.enabled }}
+
+Reach it through the Ingress:
+  kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18081:80 &
+  curl -H 'Host: {{ .Values.ingress.host }}' http://localhost:18081/
+{{- else }}
+
+Reach it with a port-forward:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "final-app.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/
+{{- end }}
+
+Endpoints: /health (liveness)  /ready (readiness)  /metrics (Prometheus)  /api/tasks

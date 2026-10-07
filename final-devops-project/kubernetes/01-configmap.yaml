@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: final-app-config
+  namespace: final-app
+  labels: {app: final-app}
+data:
+  APP_ENV: "kubernetes"
+  APP_MESSAGE: "Hello from Kubernetes (ConfigMap)"
+  DATA_DIR: "/data"
+  LOG_LEVEL: "info"

@@ -1,0 +1,11 @@
+# BuildKit uses <Dockerfile>.dockerignore when the Dockerfile lives outside the build context
+node_modules
+npm-debug.log
+reports
+data
+test
+coverage
+.git
+.gitignore
+*.md
+.env*

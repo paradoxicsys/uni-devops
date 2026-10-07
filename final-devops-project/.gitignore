@@ -1,0 +1,16 @@
+node_modules/
+reports/
+screenshots/*.txt
+bad-sample/
+*.tgz
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+*.tfvars
+# keys
+*deploy-key*
+final-project-argocd*
+*.pem

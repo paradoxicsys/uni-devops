@@ -1,0 +1,40 @@
+# Trimmed kube-prometheus-stack for a 3 GB minikube node (based on the Session 20 values)
+#   helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f monitoring/kube-prometheus-stack-values.yaml
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 6h
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+    # pick up ServiceMonitors / PrometheusRules from every namespace, not only helm-labelled ones
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+grafana:
+  adminPassword: admin123            # local demo only
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+  sidecar:
+    dashboards:
+      searchNamespace: ALL           # load the final-app dashboard ConfigMap from the monitoring ns
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+# control-plane components are not reachable on minikube -> avoid noisy "target down" alerts
+kubeEtcd: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeProxy: {enabled: false}

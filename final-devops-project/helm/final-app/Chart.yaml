@@ -1,0 +1,9 @@
+apiVersion: v2
+name: final-app
+description: Final DevOps project - Node.js task API with probes, HPA, PVC, Ingress and Prometheus metrics
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords: [nodejs, express, prometheus]
+maintainers:
+  - name: shambhu
